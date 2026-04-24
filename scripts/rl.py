@@ -152,7 +152,7 @@ def run_single_experiment(
 
     train_clusters = []
 
-    dtw_model, clusters = kmeans(datasets[0], n_clusters=7, lookback=20)           ### TODO: FINETUNE THIS
+    barycenters, clusters = kmeans(datasets[0], n_clusters=7, lookback=20)           ### TODO: FINETUNE THIS
 
     train_clusters.append(clusters)
 
@@ -235,7 +235,7 @@ def main(args):
         run_single_experiment(
             seed=s,
             instruments=args.instruments,
-            steps=100_000,                              # TODO:Finetune
+            steps=args.steps,                              # TODO:Finetune
         )
 
 
@@ -250,7 +250,7 @@ def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument("--random_seeds", type=int, nargs='+', default=[0])
     parser.add_argument("--instruments", type=str, default="csi300")
-    parser.add_argument("--steps", type=Optional[int], default=None)
+    parser.add_argument("--steps", type=Optional[int], default=100_000)
     args = parser.parse_args()
     return args
 
