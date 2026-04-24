@@ -5,7 +5,7 @@ import numpy as np
 from alphagen.config import *
 from alphagen.data.tokens import *
 from alphagen.rl.env.core import AlphaEnvCore
-from alphagen.rl import Alpha
+from scripts.rl import Alpha
 
 SIZE_NULL = 1
 SIZE_OP = len(OPERATORS)

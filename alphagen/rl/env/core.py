@@ -7,7 +7,7 @@ from alphagen.data.tokens import *
 from alphagen.data.expression import *
 from alphagen.data.tree import ExpressionBuilder
 from alphagen.utils import reseed_everything
-from alphagen.rl import Alpha
+from scripts.rl import Alpha
 
 
 class AlphaEnvCore(gym.Env):
