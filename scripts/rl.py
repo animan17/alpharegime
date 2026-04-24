@@ -12,7 +12,6 @@ from stable_baselines3.common.callbacks import BaseCallback
 
 from alphagen.data.expression import *
 from alphagen.data.parser import ExpressionParser
-from alphagen.models.linear_alpha_pool import LinearAlphaPool, MseAlphaPool
 from alphagen.rl.env.wrapper import AlphaEnv
 from alphagen.rl.policy import LSTMSharedNet
 from alphagen.utils import reseed_everything, get_logger
