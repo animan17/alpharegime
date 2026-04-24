@@ -15,7 +15,7 @@ from alphagen.data.parser import ExpressionParser
 from alphagen.models.linear_alpha_pool import LinearAlphaPool, MseAlphaPool
 from alphagen.rl.env.wrapper import AlphaEnv
 from alphagen.rl.policy import LSTMSharedNet
-from alphagen.utils import apply_seed, get_logger
+from alphagen.utils import reseed_everything, get_logger
 from alphagen.rl.env.core import AlphaEnvCore
 from alphagen_qlib.calculator import QLibStockDataCalculator
 from alphagen_qlib.stock_data import initialize_qlib
@@ -110,7 +110,7 @@ def run_single_experiment(
     instruments: str = "csi300",
     steps: int = 100_000,
 ):
-    apply_seed(seed)
+    reseed_everything(seed)
     initialize_qlib("~/.qlib/qlib_data/cn_data")
 
     print(f"""[Main] Starting training process
