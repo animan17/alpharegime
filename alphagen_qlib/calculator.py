@@ -7,12 +7,14 @@ from alphagen_qlib.stock_data import StockData
 
 
 class QLibStockDataCalculator(TensorAlphaCalculator):
-    def __init__(self, data: StockData, target: Optional[Expression] = None):
-        super().__init__(normalize_by_day(target.evaluate(data)) if target is not None else None)
+    def __init__(self, data: StockData, days: Tensor, stocks: Tensor, target: Optional[Expression] = None):
+        super().__init__(target.evaluate(data, days, stocks) if target is not None else None)    ## Removed normalize_by_day temporarily for simplicity in clustering case
         self.data = data
+        self.days = days
+        self.stocks = stocks
 
     def evaluate_alpha(self, expr: Expression) -> Tensor:
-        return normalize_by_day(expr.evaluate(self.data))
+        return expr.evaluate(self.data, self.days, self.stocks)                               ## Removed normalize_by_day temporarily for simplicity in clustering case
     
     @property
     def n_days(self) -> int:

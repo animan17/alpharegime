@@ -4,8 +4,8 @@ import numpy as np
 
 from alphagen.config import *
 from alphagen.data.tokens import *
-from alphagen.models.alpha_pool import AlphaPoolBase
 from alphagen.rl.env.core import AlphaEnvCore
+from alphagen.rl import Alpha
 
 SIZE_NULL = 1
 SIZE_OP = len(OPERATORS)
@@ -26,11 +26,9 @@ class AlphaEnvWrapper(gym.Wrapper):
     def __init__(
         self,
         env: AlphaEnvCore,
-        subexprs: Optional[List[Expression]] = None
     ):
         super().__init__(env)
-        self.subexprs = subexprs or []
-        self.size_action = SIZE_ACTION + len(self.subexprs)
+        self.size_action = SIZE_ACTION
         self.action_space = gym.spaces.Discrete(self.size_action)
         self.observation_space = gym.spaces.Box(
             low=0, high=self.size_action + SIZE_NULL - 1,
@@ -75,9 +73,6 @@ class AlphaEnvWrapper(gym.Wrapper):
         if valid['select'][3]:  # Delta time
             res[offset:offset + SIZE_DELTA_TIME] = True
         offset += SIZE_DELTA_TIME
-        if valid['select'][1]:  # Sub-expressions
-            res[offset:offset + len(self.subexprs)] = True
-        offset += len(self.subexprs)
         if valid['select'][4]:  # SEP
             res[offset] = True
         return res
@@ -97,13 +92,10 @@ class AlphaEnvWrapper(gym.Wrapper):
         if action < SIZE_DELTA_TIME:
             return DeltaTimeToken(DELTA_TIMES[action])
         action -= SIZE_DELTA_TIME
-        if action < len(self.subexprs):
-            return ExpressionToken(self.subexprs[action])
-        action -= len(self.subexprs)
         if action == 0:
             return SequenceIndicatorToken(SequenceIndicatorType.SEP)
         assert False
 
 
-def AlphaEnv(pool: AlphaPoolBase, subexprs: Optional[List[Expression]] = None, **kwargs):
-    return AlphaEnvWrapper(AlphaEnvCore(pool=pool, **kwargs), subexprs=subexprs)
+def AlphaEnv(alpha: Alpha, **kwargs):    ## accept alpha object parameter
+    return AlphaEnvWrapper(AlphaEnvCore(alpha, **kwargs))  ## pass alpha object parameter

@@ -1,3 +1,7 @@
+## FIX COMMENTS, replaced period logic with day, stock tensor
+## BRAINSTORM IF ANY NEW OPERATOR SHOULD BE INTRODUCED FOR THE CLUSTERING VERSION. ALSO CSRANK IS REMOVED
+
+
 from abc import ABCMeta, abstractmethod
 from typing import List, Type, Union, Tuple
 
@@ -15,13 +19,15 @@ class OutOfDataRangeError(IndexError):
     pass
 
 
-class Expression(metaclass=ABCMeta):
+class Expression(metaclass=ABCMeta):                                                    # this is base class, everything is an expression
+                                                                                        # instantiating defines the expression formula, it can output raw data like OHLC data for a time range, or it apply operations on raw data
+                                                                                        # calling evaluate() allows passing stock data and time range on which we apply the expression formula, the time range and data passed does not become a property of the expression object (expression object is only a formula, not an actual quantity), the same expression object is used to evaluate for different datasets and ranges
     @abstractmethod
-    def evaluate(self, data: StockData, period: slice = slice(0, 1)) -> Tensor: ...
+    def evaluate(self, data: StockData, days: Tensor, stocks: Tensor) -> Tensor: ...
 
     def __repr__(self) -> str: return str(self)
 
-    def __add__(self, other: _ExprOrFloat) -> "Add": return Add(self, other)
+    def __add__(self, other: _ExprOrFloat) -> "Add": return Add(self, other)            # __add__ defines how + operator works on Expression objects, __add__ is a special keyword
     def __radd__(self, other: float) -> "Add": return Add(other, self)
     def __sub__(self, other: _ExprOrFloat) -> "Sub": return Sub(self, other)
     def __rsub__(self, other: float) -> "Sub": return Sub(other, self)
@@ -40,40 +46,37 @@ class Expression(metaclass=ABCMeta):
     def is_featured(self) -> bool: ...
 
 
-class Feature(Expression):
-    def __init__(self, feature: FeatureType) -> None:
-        self._feature = feature
-
-    def evaluate(self, data: StockData, period: slice = slice(0, 1)) -> Tensor:
-        assert period.step == 1 or period.step is None
-        if (period.start < -data.max_backtrack_days or
-                period.stop - 1 > data.max_future_days):
-            raise OutOfDataRangeError()
-        start = period.start + data.max_backtrack_days
-        stop = period.stop + data.max_backtrack_days + data.n_days - 1
-        return data.data[start:stop, int(self._feature), :]
-
-    def __str__(self) -> str: return '$' + self._feature.name.lower()
+class Feature(Expression):                                                              # child of Expression class
+    def __init__(self, feature: FeatureType) -> None:                                   # instantiatiating defines type of feature it is used
+        self._feature = feature                                                         
+                                                                                            ### FIX COMMENTS ON EXPRESSION IS NOT QUANTITY BUT FORMULA
+    def evaluate(self, data: StockData, days: Tensor, stocks: Tensor) -> Tensor:         # evaluate basically slices required OHLC data from data object and returns it
+        # Shift the requested days by the backtrack window
+        shifted_days = days + data.max_backtrack_days
+        
+        # Validation
+        if shifted_days.min() < 0 or shifted_days.max() >= data.data.shape[0]:
+            raise OutOfDataRangeError()        
+        
+        return data.data[shifted_days, int(self._feature), stocks]
+    
+    def __str__(self) -> str: return '$' + self._feature.name.lower()                   # __str__ defines what str() or print() outputs on Feature objects
 
     @property
     def is_featured(self): return True
 
 
 class Constant(Expression):
-    def __init__(self, value: float) -> None:
-        self.value = value
+    def __init__(self, value: float) -> None:                   
+        self.value = value                              
 
-    def evaluate(self, data: StockData, period: slice = slice(0, 1)) -> Tensor:
-        assert period.step == 1 or period.step is None
-        if (period.start < -data.max_backtrack_days or
-                period.stop - 1 > data.max_future_days):
-            raise OutOfDataRangeError()
-        device = data.data.device
-        dtype = data.data.dtype
-        days = period.stop - period.start - 1 + data.n_days
-        return torch.full(size=(days, data.n_stocks),
-                          fill_value=self.value, dtype=dtype, device=device)
-
+    def evaluate(self, data: StockData, days: Tensor, stocks: Tensor) -> Tensor:        # Return a tensor of the same shape as `days`, filled with the constant
+        return torch.full(
+            size=days.shape, 
+            fill_value=self.value, 
+            dtype=data.data.dtype, 
+            device=data.data.device
+        )
     def __str__(self) -> str: return str(self.value)
 
     @property
@@ -83,10 +86,10 @@ class Constant(Expression):
 class DeltaTime(Expression):
     # This is not something that should be in the final expression
     # It is only here for simplicity in the implementation of the tree builder
-    def __init__(self, delta_time: int) -> None:
+    def __init__(self, delta_time: int) -> None:                                        # only sets self.delta_time, evaluate() is never called
         self._delta_time = delta_time
 
-    def evaluate(self, data: StockData, period: slice = slice(0, 1)) -> Tensor:
+    def evaluate(self, data: StockData, days: Tensor, stocks: Tensor) -> Tensor:
         assert False, "Should not call evaluate on delta time"
 
     def __str__(self) -> str: return f"{self._delta_time}d"
@@ -96,19 +99,22 @@ class DeltaTime(Expression):
 
 
 def _into_expr(value: _ExprOrFloat) -> "Expression":
-    return value if isinstance(value, Expression) else Constant(value)
+    return value if isinstance(value, Expression) else Constant(value)                  # returns Expression object by converting scalar by instantiating Constant object
 
 
 def _into_delta_time(value: Union[int, DeltaTime]) -> DeltaTime:
-    return value if isinstance(value, DeltaTime) else DeltaTime(value)
+    return value if isinstance(value, DeltaTime) else DeltaTime(value)                  # returns Expression object by converting scalar by instantiating DeltaTime object
 
 
 # Operator base classes
 
+
+
 class Operator(Expression):
-    @classmethod
+    @classmethod                                                                        # @classmethod tells python to pass the Class as first argument (by default object is passed to self paremeter), don't confuse with object instance, it can be called like <class>.classmethod() or <object>.classmethod(), but either way first parameter is set to the class
+                                                                                        # like calling Operator.n_args() will set cls to the Operator class
     @abstractmethod
-    def n_args(cls) -> int: ...
+    def n_args(cls) -> int: ...                                         
 
     @classmethod
     @abstractmethod
@@ -119,15 +125,15 @@ class Operator(Expression):
     def validate_parameters(cls, *args) -> Maybe[str]: ...
 
     @classmethod
-    def _check_arity(cls, *args) -> Maybe[str]:
+    def _check_arity(cls, *args) -> Maybe[str]:                                         # checks if correct number of operands
         arity = cls.n_args()
         if len(args) == arity:
             return none(str)
         else:
             return some(f"{cls.__name__} expects {arity} operand(s), but received {len(args)}")
 
-    @classmethod
-    def _check_exprs_featured(cls, args: list) -> Maybe[str]:
+    @classmethod                                                                        
+    def _check_exprs_featured(cls, args: list) -> Maybe[str]:                           # checks for type of each arg in args
         any_is_featured: bool = False
         for i, arg in enumerate(args):
             if not isinstance(arg, (Expression, float)):
@@ -143,7 +149,7 @@ class Operator(Expression):
             else:
                 return some(f"{cls.__name__} expects at least one featured expression for its operands, "
                             f"but none of {args} is featured")
-        return none(str)
+        return none(str)                                                               
 
     @classmethod
     def _check_delta_time(cls, arg) -> Maybe[str]:
@@ -173,8 +179,10 @@ class UnaryOperator(Operator):
     def validate_parameters(cls, *args) -> Maybe[str]:
         return cls._check_arity(*args).or_else(lambda: cls._check_exprs_featured([args[0]]))
 
-    def evaluate(self, data: StockData, period: slice = slice(0, 1)) -> Tensor:
-        return self._apply(self._operand.evaluate(data, period))
+    def evaluate(self, data: StockData, days: Tensor, stocks: Tensor) -> Tensor:
+        return self._apply(self._operand.evaluate(data, days, stocks))                                # The evaluate() method defines the computation structure for this operator type
+                                                                                                # (e.g., unary vs binary), while the specific operation logic for each subclass
+                                                                                                # is implemented in _apply(). This avoids redundancy by separating structure from behavior.
 
     @abstractmethod
     def _apply(self, operand: Tensor) -> Tensor: ...
@@ -201,8 +209,8 @@ class BinaryOperator(Operator):
     def validate_parameters(cls, *args) -> Maybe[str]:
         return cls._check_arity(*args).or_else(lambda: cls._check_exprs_featured([args[0], args[1]]))
 
-    def evaluate(self, data: StockData, period: slice = slice(0, 1)) -> Tensor:
-        return self._apply(self._lhs.evaluate(data, period), self._rhs.evaluate(data, period))
+    def evaluate(self, data: StockData, days: Tensor, stocks: Tensor) -> Tensor:
+        return self._apply(self._lhs.evaluate(data, days, stocks), self._rhs.evaluate(data, days, stocks))
 
     @abstractmethod
     def _apply(self, lhs: Tensor, rhs: Tensor) -> Tensor: ...
@@ -235,15 +243,21 @@ class RollingOperator(Operator):
             lambda: cls._check_delta_time(args[1])
         )
 
-    def evaluate(self, data: StockData, period: slice = slice(0, 1)) -> Tensor:
-        start = period.start - self._delta_time + 1
-        stop = period.stop
-        # L: period length (requested time window length)
-        # W: window length (dt for rolling)
-        # S: stock count
-        values = self._operand.evaluate(data, slice(start, stop))   # (L+W-1, S)
-        values = values.unfold(0, self._delta_time, 1)              # (L, S, W)
-        return self._apply(values)                                  # (L, S)
+    def evaluate(self, data: StockData, days: Tensor, stocks: Tensor) -> Tensor:
+        dt = self._delta_time
+        # Create an offset array: e.g., for dt=3, offsets = [-2, -1, 0]
+        offsets = torch.arange(-dt + 1, 1, dtype=days.dtype, device=days.device)
+        
+        # Broadcast days and stocks to include the rolling window dimension
+        window_days = days.unsqueeze(-1) + offsets
+        window_stocks = stocks.unsqueeze(-1).expand_as(window_days)
+        
+        # Evaluate operand. If input was [N], values will be [N, dt]
+        values = self._operand.evaluate(data, window_days, window_stocks)
+        
+        # _apply functions (like mean, std, max) already operate on dim=-1
+        return self._apply(values)
+    
 
     @abstractmethod
     def _apply(self, operand: Tensor) -> Tensor: ...
@@ -255,7 +269,7 @@ class RollingOperator(Operator):
     def is_featured(self): return self._operand.is_featured
 
 
-class PairRollingOperator(Operator):
+class PairRollingOperator(Operator):                                                                # applying say covariance to stock i at t1 and stock j at t2, so we calculate same size past window for both and then apply operator which takes in both windows, like covariance operator
     def __init__(self, lhs: _ExprOrFloat, rhs: _ExprOrFloat, delta_time: _DTimeOrInt) -> None:
         self._lhs = _into_expr(lhs)
         self._rhs = _into_expr(rhs)
@@ -275,20 +289,20 @@ class PairRollingOperator(Operator):
             lambda: cls._check_delta_time(args[2])
         )
 
-    def _unfold_one(self, expr: Expression,
-                    data: StockData, period: slice = slice(0, 1)) -> Tensor:
-        start = period.start - self._delta_time + 1
-        stop = period.stop
-        # L: period length (requested time window length)
-        # W: window length (dt for rolling)
-        # S: stock count
-        values = expr.evaluate(data, slice(start, stop))            # (L+W-1, S)
-        return values.unfold(0, self._delta_time, 1)                # (L, S, W)
+    def _unfold_one(self, expr: Expression, data: StockData, days: Tensor, stocks: Tensor) -> Tensor:
+        dt = self._delta_time
+        offsets = torch.arange(-dt + 1, 1, dtype=days.dtype, device=days.device)
+        
+        window_days = days.unsqueeze(-1) + offsets
+        window_stocks = stocks.unsqueeze(-1).expand_as(window_days)
+        
+        return expr.evaluate(data, window_days, window_stocks)
 
-    def evaluate(self, data: StockData, period: slice = slice(0, 1)) -> Tensor:
-        lhs = self._unfold_one(self._lhs, data, period)
-        rhs = self._unfold_one(self._rhs, data, period)
-        return self._apply(lhs, rhs)                                # (L, S)
+    def evaluate(self, data: StockData, days: Tensor, stocks: Tensor) -> Tensor:
+        lhs = self._unfold_one(self._lhs, data, days, stocks)
+        rhs = self._unfold_one(self._rhs, data, days, stocks)
+        return self._apply(lhs, rhs)
+
 
     @abstractmethod
     def _apply(self, lhs: Tensor, rhs: Tensor) -> Tensor: ...
@@ -307,20 +321,27 @@ class Abs(UnaryOperator):
 
 
 class Sign(UnaryOperator):
-    def _apply(self, operand: Tensor) -> Tensor: return operand.sign()
+     def _apply(self, operand: Tensor) -> Tensor: return operand.sign()
 
 
 class Log(UnaryOperator):
     def _apply(self, operand: Tensor) -> Tensor: return operand.log()
 
 
-class CSRank(UnaryOperator):
-    def _apply(self, operand: Tensor) -> Tensor:
-        nan_mask = operand.isnan()
-        n = (~nan_mask).sum(dim=1, keepdim=True)
-        rank = operand.argsort().argsort() / n
-        rank[nan_mask] = torch.nan
-        return rank
+
+# class CSRank(UnaryOperator):                                                    
+#     def _apply(self, operand: Tensor) -> Tensor:                                                # CHANGED 
+#         nan_mask = operand.isnan()
+#         filled = operand.masked_fill(nan_mask, float('inf'))
+
+#         rank = filled.argsort(dim=1).argsort(dim=1).float()
+
+#         n = (~nan_mask).sum(dim=1, keepdim=True)
+#         rank = rank / n
+
+#         rank[nan_mask] = torch.nan
+#         return rank
+
 
 
 class Add(BinaryOperator):
@@ -357,10 +378,10 @@ class Ref(RollingOperator):
     # at -dt. Nonetheless, it should be classified as rolling since it modifies
     # the time window.
 
-    def evaluate(self, data: StockData, period: slice = slice(0, 1)) -> Tensor:
-        start = period.start - self._delta_time
-        stop = period.stop - self._delta_time
-        return self._operand.evaluate(data, slice(start, stop))
+    def evaluate(self, data: StockData, days: Tensor, stocks: Tensor) -> Tensor:
+        # Shift the exact days requested
+        shifted_days = days - self._delta_time
+        return self._operand.evaluate(data, shifted_days, stocks)
 
     def _apply(self, operand: Tensor) -> Tensor:
         # This is just for fulfilling the RollingOperator interface
@@ -435,11 +456,17 @@ class Delta(RollingOperator):
     # at -dt and 0. Nonetheless, it should be classified as rolling since it
     # modifies the time window.
 
-    def evaluate(self, data: StockData, period: slice = slice(0, 1)) -> Tensor:
-        start = period.start - self._delta_time
-        stop = period.stop
-        values = self._operand.evaluate(data, slice(start, stop))
-        return values[self._delta_time:] - values[:-self._delta_time]
+    def evaluate(self, data: StockData, days: Tensor, stocks: Tensor) -> Tensor:
+        # Evaluate current
+        curr_values = self._operand.evaluate(data, days, stocks)
+        
+        # Evaluate past
+        shifted_days = days - self._delta_time
+        past_values = self._operand.evaluate(data, shifted_days, stocks)
+        
+        return curr_values - past_values
+    
+
 
     def _apply(self, operand: Tensor) -> Tensor:
         # This is just for fulfilling the RollingOperator interface
@@ -486,7 +513,7 @@ class Corr(PairRollingOperator):
 
 Operators: List[Type[Operator]] = [
     # Unary
-    Abs, Sign, Log, CSRank,
+    Abs, Sign, Log, 
     # Binary
     Add, Sub, Mul, Div, Pow, Greater, Less,
     # Rolling

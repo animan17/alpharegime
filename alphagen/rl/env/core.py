@@ -6,35 +6,34 @@ from alphagen.config import MAX_EXPR_LENGTH
 from alphagen.data.tokens import *
 from alphagen.data.expression import *
 from alphagen.data.tree import ExpressionBuilder
-from alphagen.models.alpha_pool import AlphaPoolBase
-from alphagen.models.linear_alpha_pool import LinearAlphaPool
 from alphagen.utils import reseed_everything
+from alphagen.rl import Alpha
 
 
 class AlphaEnvCore(gym.Env):
-    pool: AlphaPoolBase
+
+    alpha: Alpha
     _tokens: List[Token]
     _builder: ExpressionBuilder
     _print_expr: bool
 
     def __init__(
         self,
-        pool: AlphaPoolBase,
+        alpha: Alpha,
         device: torch.device = torch.device('cuda:0'),
         print_expr: bool = False
     ):
         super().__init__()
 
-        self.pool = pool
+        self.alpha = alpha
+
         self._print_expr = print_expr
         self._device = device
-
-        self.eval_cnt = 0
 
         self.render_mode = None
         self.reset()
 
-    def reset(
+    def reset(                                                                  # start of episode
         self, *,
         seed: Optional[int] = None,
         return_info: bool = False,
@@ -69,8 +68,7 @@ class AlphaEnvCore(gym.Env):
         if self._print_expr:
             print(expr)
         try:
-            ret = self.pool.try_new_expr(expr)
-            self.eval_cnt += 1
+            ret = self.alpha.evaluate(expr)             # if too low? is condition required?
             return ret
         except OutOfDataRangeError:
             return 0.

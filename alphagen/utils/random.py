@@ -6,7 +6,7 @@ import torch
 from torch.backends import cudnn
 
 
-def reseed_everything(seed: Optional[int]):
+def apply_seed(seed: Optional[int]):
     if seed is None:
         return
 
