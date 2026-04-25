@@ -1,3 +1,4 @@
+
 from typing import Tuple, Optional
 import gymnasium as gym
 import math
@@ -7,8 +8,7 @@ from alphagen.data.tokens import *
 from alphagen.data.expression import *
 from alphagen.data.tree import ExpressionBuilder
 from alphagen.utils import reseed_everything
-from scripts.rl import Alpha
-
+from alphagen.utils.alpha import Alpha
 
 class AlphaEnvCore(gym.Env):
 

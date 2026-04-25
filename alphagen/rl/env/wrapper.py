@@ -1,3 +1,4 @@
+
 from typing import Tuple, List, Optional
 import gymnasium as gym
 import numpy as np
@@ -5,7 +6,7 @@ import numpy as np
 from alphagen.config import *
 from alphagen.data.tokens import *
 from alphagen.rl.env.core import AlphaEnvCore
-from scripts.rl import Alpha
+from alphagen.utils.alpha import Alpha
 
 SIZE_NULL = 1
 SIZE_OP = len(OPERATORS)

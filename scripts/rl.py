@@ -1,3 +1,4 @@
+
 import json
 import os
 from typing import Optional, Tuple, List
@@ -20,6 +21,7 @@ from alphagen_qlib.calculator import QLibStockDataCalculator
 from alphagen_qlib.stock_data import initialize_qlib
 from alphagen.data.calculator import AlphaCalculator
 from alphagen.utils.clustering import kmeans, calc_clusters
+from alphagen.utils.alpha import Alpha
 
 
 def build_parser() -> ExpressionParser:
@@ -33,26 +35,6 @@ def build_parser() -> ExpressionParser:
             "Delta": [Sub]
         }
     )
-
-
-class Alpha:
-    def __init__(
-        self,
-        calculator: AlphaCalculator,
-        device: torch.device = torch.device("cpu")
-    ):
-        self.calculator = calculator
-        self.device = device
-        self.ic_ret = 0
-        self.expr: Expression
-
-    def evaluate(self, expr: Expression)-> Tuple[float, float]:
-        self.ic_ret = self.calculator.calc_single_IC_ret(expr)
-        self.expr = expr    
-        return self.ic_ret
-    
-    def test(self, calculator) -> Tuple[float, float]:
-        return calculator.calc_single_IC_ret(self.expr)
     
 
 class CustomCallback(BaseCallback):
