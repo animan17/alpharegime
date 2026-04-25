@@ -1,4 +1,6 @@
 
+
+import torch 
 from alphagen.data.calculator import AlphaCalculator
 
 class Alpha:
