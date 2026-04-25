@@ -1,0 +1,14 @@
+
+baostock
+gym
+matplotlib
+numpy
+pandas
+qlib
+sb3_contrib
+stable_baselines3
+torch
+shimmy
+fire
+openai
+num2words
