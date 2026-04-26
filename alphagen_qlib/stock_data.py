@@ -1,3 +1,4 @@
+
 from typing import List, Union, Optional, Tuple
 from enum import IntEnum
 import numpy as np
@@ -14,7 +15,7 @@ class FeatureType(IntEnum):
     VWAP = 5
 
 
-_DEFAULT_QLIB_DATA_PATH = "~/.qlib/qlib_data/cn_data"
+_DEFAULT_QLIB_DATA_PATH = "/kaggle/working/qlib_data/cn_data"
 _QLIB_INITIALIZED = False
 
 

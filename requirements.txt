@@ -4,7 +4,7 @@ gym
 matplotlib
 numpy
 pandas
-qlib
+pyqlib
 sb3_contrib
 stable_baselines3
 torch

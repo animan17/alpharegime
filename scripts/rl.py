@@ -92,7 +92,7 @@ def run_single_experiment(
     steps: int = 100_000,
 ):
     reseed_everything(seed)
-    initialize_qlib("~/.qlib/qlib_data/cn_data")
+    initialize_qlib()
 
     print(f"""[Main] Starting training process
     Seed: {seed}
@@ -210,8 +210,7 @@ def run_single_experiment(
 
 
 def main(args):
-    if isinstance(args.random_seeds, int):
-        random_seeds = (args.random_seeds, )
+    random_seeds = args.random_seeds
     for s in random_seeds:
         run_single_experiment(
             seed=s,

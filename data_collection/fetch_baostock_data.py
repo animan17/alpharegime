@@ -240,7 +240,8 @@ class DataManager:
                 msg = (f"Retry attempts exceeds the limit of {self._max_retries}, "
                        f"error code: {result.error_code}, error message: {result.error_msg}")
                 print(msg)
-                raise Exception(msg)
+                return pd.DataFrame()
+                
             time.sleep(self._retry_wait_seconds)
             baostock_relogin()
 
@@ -290,10 +291,10 @@ class DataManager:
 
 if __name__ == "__main__":
     dm = DataManager(
-        save_path="../data",
-        qlib_export_path="~/.qlib/qlib_data/cn_data_2024h1",
-        qlib_base_data_path="~/.qlib/qlib_data/cn_data",
-        adjust_date="2009-01-01"
+        save_path="/kaggle/working/data",
+        qlib_export_path="/kaggle/working/qlib_data/cn_data_2024h1",
+        qlib_base_data_path="/kaggle/working/qlib_data/cn_data",
+        adjust_date="2009-01-01",
     )
     dm.fetch_and_save_data()
     # dm._dump_qlib_data()
