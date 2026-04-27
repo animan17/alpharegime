@@ -1,0 +1,1 @@
+Add(Div(Ref(Sub($close,-1.0),20d),2.0),-10.0)

@@ -1,0 +1,1 @@
+Ref(Div(Mul(-2.0,Less($close,$close)),-2.0),5d)

@@ -1,0 +1,1 @@
+Abs(EMA(Greater($close,-10.0),10d))

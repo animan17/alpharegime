@@ -1,0 +1,1 @@
+Log(Greater(Mul(30.0,Add($close,-1.0)),-1.0))

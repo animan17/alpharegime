@@ -1,0 +1,1 @@
+Greater(Add(10.0,$low),Less($open,-10.0))

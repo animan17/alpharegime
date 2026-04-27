@@ -1,0 +1,1 @@
+Sub(-2.0,Mean(Less(Sub(Less(Abs($vwap),2.0),-2.0),Mul(-0.01,$volume)),10d))

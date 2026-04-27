@@ -1,0 +1,1 @@
+Add(-10.0,Cov(Abs($volume),Var(Less(Sub($open,-0.01),-1.0),1d),1d))

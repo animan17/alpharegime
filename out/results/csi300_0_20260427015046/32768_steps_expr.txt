@@ -1,0 +1,1 @@
+Sub(1.0,Div(Add($low,$open),-5.0))

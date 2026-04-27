@@ -1,0 +1,1 @@
+Less(Med(Less(-2.0,$open),5d),$open)

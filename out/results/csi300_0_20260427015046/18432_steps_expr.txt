@@ -1,0 +1,1 @@
+Mul(Div(Greater(Var(Sub(Abs(Mul(-5.0,$volume)),1.0),10d),1.0),-10.0),5.0)

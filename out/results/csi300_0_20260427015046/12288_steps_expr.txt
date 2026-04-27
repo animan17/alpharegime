@@ -1,0 +1,1 @@
+Less(Sum(Less($volume,-0.5),5d),$low)

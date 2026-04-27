@@ -1,0 +1,1 @@
+Add(Less(Mul(30.0,Sub($close,Div(-0.5,Min(Log($low),5d)))),1.0),$open)

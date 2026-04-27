@@ -1,0 +1,1 @@
+Greater(-0.5,$close)

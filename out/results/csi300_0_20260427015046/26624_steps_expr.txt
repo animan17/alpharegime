@@ -1,0 +1,1 @@
+Ref(Log(Sub(Mean(Mad(Less($open,-0.01),1d),5d),$vwap)),10d)
