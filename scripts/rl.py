@@ -20,7 +20,7 @@ from alphagen.rl.env.core import AlphaEnvCore
 from alphagen_qlib.calculator import QLibStockDataCalculator
 from alphagen_qlib.stock_data import initialize_qlib
 from alphagen.data.calculator import AlphaCalculator
-from alphagen.utils.clustering import kmeans, calc_clusters
+from alphagen.utils.clustering import kmeans, calc_clusters, plot_cluster_waves
 from alphagen.utils.alpha import Alpha
 
 
@@ -56,21 +56,36 @@ class CustomCallback(BaseCallback):
     def _on_rollout_end(self) -> None:
         n_days = sum(calculator.data.n_days for calculator in self.test_calculators)
         ic_test_mean = 0.
+
+        test_ics = []
         for i, test_calculator in enumerate(self.test_calculators, start=1):
             ic_test = self.alpha.test(test_calculator)      ## TODO
             ic_test_mean += ic_test * test_calculator.data.n_days / n_days
             self.logger.record(f'test/ic_{i}', ic_test)
+            
+            test_ics.append(ic_test)
         self.logger.record(f'test/ic_mean', ic_test_mean)
         self.save_checkpoint()
 
+        # --- NEW CLEAN INTERPRETABLE LOGGING ---
+        print(f"\n" + "="*50)
+        print(f"📊 ROLLOUT COMPLETE | Step: {self.num_timesteps}")
+        print(f"📈 Latest Formula Evaluated:")
+        print(f"   {self.alpha.expr}")
+        print(f"\n🧪 OUT-OF-SAMPLE TEST METRICS (Unseen Regimes):")
+        for i, ic in enumerate(test_ics, start=1):
+            print(f"   Segment {i}: IC = {ic:.5f}")
+        print(f"   -------------------")
+        print(f"   Weighted Mean IC: {ic_test_mean:.5f}")
+        print("="*50 + "\n")
+        
     def save_checkpoint(self):
         path = os.path.join(self.save_path, f'{self.num_timesteps}_steps')
         self.model.save(path)   # type: ignore
         if self.verbose > 1:
             print(f'Saving model checkpoint to {path}')
-        with open(f'{path}_pool.json', 'w') as f:
-            json.dump(self.pool.to_json_dict(), f)
-
+        with open(f'{path}_expr.txt', 'w') as f:
+            f.write(str(self.alpha.expr) if self.alpha.expr else "None")
 
     @property
     def alpha(self) -> Alpha:                                          ## change this to get the alpha object from the environment
@@ -123,19 +138,18 @@ def run_single_experiment(
         )
 
     segments = [
-        ("2012-01-01", "2021-12-31"),
-        ("2022-01-01", "2022-06-30"),
-        ("2022-07-01", "2022-12-31"),
-        ("2023-01-01", "2023-06-30")
+        ("2012-01-01", "2021-12-31"),         # train
+        ("2022-01-01", "2022-06-30"),         # test
+        ("2022-07-01", "2022-12-31"),         # test
+        ("2023-01-01", "2023-06-30")          # test
     ]
 
     datasets = [get_dataset(*s) for s in segments]
 
-    train_clusters = []
 
-    barycenters, clusters = kmeans(datasets[0], n_clusters=7, lookback=20)           ### TODO: FINETUNE THIS
+    barycenters, train_clusters = kmeans(datasets[0], n_clusters=10, lookback=20)           ### TODO: FINETUNE THIS
+    plot_cluster_waves(barycenters, train_clusters, datasets[0], lookback=20, num_samples=100)
 
-    train_clusters.append(clusters)
 
     test_clusters = []
 
@@ -146,20 +160,25 @@ def run_single_experiment(
 
 
 
-    num_train_clusters = len(train_clusters[0])
+    num_train_clusters = len(train_clusters)
 
     calculators = []
 
-    for i, clusters in enumerate(train_clusters):
-        for days, stocks in train_clusters[0]:
-            calculators.append(QLibStockDataCalculator(datasets[i], days, stocks, target))
+    for days, stocks in train_clusters:
+        days_tensor = torch.tensor(days, dtype=torch.long, device=device)
+        stocks_tensor = torch.tensor(stocks, dtype=torch.long, device=device)
+        calculators.append(QLibStockDataCalculator(datasets[0], days_tensor, stocks_tensor, target))
+
+    
     for i, clusters in enumerate(test_clusters):
         for days, stocks in clusters:
-            calculators.append(QLibStockDataCalculator(datasets[len(train_clusters)+i], days, stocks, target))
+            days_tensor = torch.tensor(days, dtype=torch.long, device=device)
+            stocks_tensor = torch.tensor(stocks, dtype=torch.long, device=device)
+            calculators.append(QLibStockDataCalculator(datasets[1+i], days_tensor, stocks_tensor, target))
 
 
 
-    for i in range(num_train_clusters):                   ## can it be parallelized
+    for i in range(num_train_clusters):               
     
         alpha = Alpha(
             calculator=calculators[i],
@@ -170,7 +189,7 @@ def run_single_experiment(
         env = AlphaEnv(
             alpha,
             device=device,
-            print_expr=True
+            print_expr=False
         )
 
         test_calculators = []

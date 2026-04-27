@@ -15,7 +15,7 @@ class FeatureType(IntEnum):
     VWAP = 5
 
 
-_DEFAULT_QLIB_DATA_PATH = "/kaggle/working/qlib_data/cn_data"
+_DEFAULT_QLIB_DATA_PATH = "/kaggle/input/baostock-qlib-cn-data/cn_data"
 _QLIB_INITIALIZED = False
 
 
