@@ -2,10 +2,11 @@
 #check, fully ai written!!!
 
 from typing import Optional
+import torch
 from torch import Tensor
 from alphagen.data.calculator import TensorAlphaCalculator
-from alphagen.data.expression import Expression
-from alphagen_qlib.stock_data import StockData
+from alphagen.data.expression import Expression, Feature
+from alphagen_qlib.stock_data import StockData, FeatureType
 
 class QLibStockDataCalculator(TensorAlphaCalculator):
     def __init__(self, data: StockData, days: Tensor, stocks: Tensor, target: Optional[Expression] = None):
@@ -23,8 +24,15 @@ class QLibStockDataCalculator(TensorAlphaCalculator):
             
             # Offset the day indices because the dense matrix now starts at min_day instead of 0
             sparse_target = dense_target[self.days - self.min_day, self.stocks]
+
+
+            # 2. EXTRACT SPARSE CLOSE PRICE FOR THE NEW EVALUATION MATH
+            close_expr = Feature(FeatureType.CLOSE)
+            dense_close = close_expr.evaluate(data, slice(self.min_day, self.max_day))
+            self.sparse_close = dense_close[self.days - self.min_day, self.stocks]
         else:
             sparse_target = torch.empty(0, device=days.device) if target is not None else None
+            self.sparse_close = torch.empty(0, device=days.device)
             
         super().__init__(sparse_target)
 
@@ -37,8 +45,11 @@ class QLibStockDataCalculator(TensorAlphaCalculator):
         
         # Offset the day indices to extract the correct pairs
         sparse_output = dense_output[self.days - self.min_day, self.stocks]
+
+        # 2. APPLY YOUR CUSTOM LOGIC: (Alpha / Current_Close) - 1
+        transformed_alpha = (sparse_output / self.sparse_close) - 1
         
-        return sparse_output
+        return transformed_alpha
     
     @property
     def n_days(self) -> int:

@@ -1,8 +1,9 @@
+
 from typing import Type
 from alphagen.data.expression import *
 
 
-MAX_EXPR_LENGTH = 15
+MAX_EXPR_LENGTH = 20
 MAX_EPISODE_LENGTH = 256
 
 OPERATORS: List[Type[Operator]] = [
